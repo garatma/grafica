@@ -1,0 +1,136 @@
+{
+  "vertexSource": "#version 300 es\n\n        uniform mat4 viewMatrix;\n        uniform mat4 projectionMatrix;\n        uniform mat4 normalMatrix;\n        uniform mat4 modelMatrix;\n        \n        uniform vec3 ppuntual;\n        uniform vec3 pspot;\n        uniform vec3 ddireccional;\n        \n        in vec3 vertexNormal;\n        in vec3 vertexPosition;\n        in vec2 vertexTextureCoordinates;\n        \n        out vec3 normal;\n        out vec3 Lpuntual;\n        out vec3 ojo;\n        out vec3 Lspot;\n        out vec3 LEspot;\n        out vec3 ddir;\n        out vec2 ftextCoord;\n\t\tout mat3 TBNMatrix;\n        \n        void main() {\n            vec3 vPE = vec3(viewMatrix * modelMatrix * vec4(vertexPosition, 1));\n            vec3 LE = vec3(viewMatrix * vec4(ppuntual,1));\n            ddir = normalize( vec3( viewMatrix * vec4(ddireccional,0)   )  );\n            Lpuntual = normalize(vec3(LE-vPE));\n            normal = normalize(vec3(normalMatrix*vec4(vertexNormal,1)));\n            ojo = normalize(-vPE);  // distancia entre la posicion del ojo (0,0,0) y un vertice del objeto\n            ftextCoord = vertexTextureCoordinates;\n        \n            \n            vec3 tangent = normalize(vec3(normalMatrix*vec4(0,1,0,0)));\n            tangent = normalize(cross(normal,tangent));\n            vec3 bitangent = normalize(cross(normal,tangent));\n            TBNMatrix = mat3(tangent,bitangent,normal);\n        \n            LEspot = vec3(viewMatrix * vec4(pspot,1));\n            Lspot = normalize( pspot - vec3(modelMatrix * vec4(vertexPosition, 1)) );\n            LEspot = normalize(vec3(LEspot-vPE));\n            gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(vertexPosition, 1);\n        }",
+  "fragmentSource": "#version 300 es\n        precision mediump float;\n        \n        uniform vec3 intensidad_ambiente;\n        \n        uniform float n;\n        \n        uniform vec3 ipuntual;\n        uniform vec3 fapuntual;\n        \n        uniform vec3 dspot;\n        uniform vec3 ispot;\n        uniform float angulo;\n        uniform vec3 faspot;\n        uniform vec3 idireccional;\n        uniform sampler2D imagen;\n        uniform sampler2D imagen2;\n        uniform sampler2D imagen3;\n\t\tuniform sampler2D normalsmap;\n\n        in vec2 ftextCoord;\n        in vec3 Lspot;\n        in vec3 LEspot;\n        in vec3 normal;\n        in vec3 Lpuntual;\n        in vec3 ojo;\n        in vec3 ddir;\n\t\tin mat3 TBNMatrix;\n        \n        out vec4 fragmentColor;\n        \n        void main() {\n\n        vec3 tex_difusa =  vec3(texture(imagen, ftextCoord));\n        vec3 tex_espec =  vec3(texture(imagen3, ftextCoord));\n        vec3 normaltex = vec3(texture(normalsmap, ftextCoord));\n            \n        vec3 N = TBNMatrix * (normaltex*2.0-1.0); \n\n        float FP = 1.0/3.0;\n        vec3 L = normalize(Lpuntual);\n        vec3 V = normalize(ojo);\n        vec3 H = normalize(L+V);\n        float NL = max(dot(N,L),0.0); // intensidad de luz difusa\n        float NHn = pow(max(dot(N,H),0.0),n);// intensidad de luz especular\n        float d = sqrt(L.x*L.x + L.y*L.y + L.z*L.z  );\n        float fa = 1.0/(1.0+fapuntual.x+fapuntual.y*d+fapuntual.z*d*d);\n            \n        vec3 difusa = fa*ipuntual*tex_difusa*NL;\n        vec3 especular = vec3(0,0,0);\n        if(dot(N,L)>0.0){\n         \tespecular = fa*ipuntual*tex_espec*NHn;\n        }\n    \tvec3 ambiente = tex_difusa * ipuntual * 0.1;\n        vec3 luzpuntual = ambiente +difusa + especular;\n        \n        vec3 Ldir = normalize(-ddir);\n        NL = max(dot(N,Ldir),0.0);\n        vec3 luzdireccional = vec3(0,0,0);\n        H = normalize(Ldir+V);\n        NHn  = pow(max(dot(N,H),0.0),n);\n        difusa = fa*idireccional*tex_difusa*NL;\n        especular = vec3(0,0,0);\n        if(dot(N,L)>0.0){\n         \tespecular = fa*idireccional*tex_espec*NHn;\n        }\n    \tambiente = tex_difusa * idireccional * 0.1;\n        luzdireccional =  ambiente + difusa + especular;\n        \n        \n        vec3 Dspot = normalize(-dspot);\n        vec3 vL = normalize(Lspot);\n        L = normalize(LEspot);   \n        H = normalize(L+V);\n        NL = max(dot(N,L),0.0);\n        NHn  = pow(max(dot(N,H),0.0),n);\n        vec3 luzspot = vec3(0,0,0);\n        difusa= vec3(0,0,0);\n        especular= vec3(0,0,0);\n        ambiente = vec3(0,0,0);\n        if ( angulo == 0.0 || dot(vL,Dspot) > angulo ) {\n           d = sqrt(L.x*L.x + L.y*L.y + L.z*L.z  );\n            fa = 1.0/(1.0+faspot.x+faspot.y*d+faspot.z*d*d);\n        difusa = fa*ispot*tex_difusa*NL;\n        if(dot(N,L)>0.0){\n         \tespecular = fa*ispot*tex_espec*NHn;\n        }\n    \tambiente = tex_difusa * ispot * 0.1;\n\t    luzspot += ambiente + difusa + especular;\n        }\n        \n        vec3 color =  FP*( luzspot + luzpuntual + luzdireccional) ;\n        \n        vec4 oxido = texture(imagen2,ftextCoord);\n\n        fragmentColor =  oxido + vec4(color,1);\n        \n        }",
+  "model": "sphere",
+  "uniforms": [
+    {
+      "name": "ppuntual",
+      "type": "vec3",
+      "value": [
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "name": "pspot",
+      "type": "vec3",
+      "value": [
+        0,
+        -1,
+        0
+      ]
+    },
+    {
+      "name": "ddireccional",
+      "type": "vec3",
+      "value": [
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "name": "intensidad_ambiente",
+      "type": "vec3",
+      "value": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "name": "n",
+      "type": "float",
+      "value": 10
+    },
+    {
+      "name": "ipuntual",
+      "type": "vec3",
+      "value": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "name": "fapuntual",
+      "type": "vec3",
+      "value": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "name": "dspot",
+      "type": "vec3",
+      "value": [
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "name": "ispot",
+      "type": "vec3",
+      "value": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "name": "angulo",
+      "type": "float",
+      "value": 0.9
+    },
+    {
+      "name": "faspot",
+      "type": "vec3",
+      "value": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "name": "idireccional",
+      "type": "vec3",
+      "value": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "name": "imagen",
+      "type": "sampler2D",
+      "value": 0
+    },
+    {
+      "name": "imagen2",
+      "type": "sampler2D",
+      "value": 0
+    },
+    {
+      "name": "imagen3",
+      "type": "sampler2D",
+      "value": 1
+    },
+    {
+      "name": "normalsmap",
+      "type": "sampler2D",
+      "value": 3
+    }
+  ],
+  "textureUnits": [
+    "crate",
+    "rust metallic",
+    "earth day",
+    "blank",
+    "blank",
+    "blank",
+    "blank"
+  ]
+}

@@ -1,0 +1,151 @@
+{
+  "vertexSource": "#version 300 es  \nprecision mediump float;\nprecision mediump int;\n\nuniform mat4 viewMatrix;\nuniform mat4 projectionMatrix;\nuniform mat4 normalMatrix;\nuniform mat4 modelMatrix;\n\nuniform vec3 ppuntual;\nuniform vec3 pspot;\nuniform vec3 ddireccional;\n\nin vec3 vertexPosition;\nin vec3 vertexTextureCoordinates;\nin vec3 vertexNormal;\n\nout vec3 normal;\nout vec3 Lpuntual;\nout vec3 ojo;\nout vec3 Lspot;\nout vec3 LEspot;\nout vec3 ddir;\n\nout vec3 coordenadas_texturas;\n\n  void main(void) {\n    vec3 vPE = vec3(viewMatrix * modelMatrix * vec4(vertexPosition, 1));\n    vec3 LE = vec3(viewMatrix * vec4(ppuntual,1));\n    ddir = normalize( vec3( viewMatrix * vec4(ddireccional,0)   )  );\n    Lpuntual = normalize(vec3(LE-vPE));\n    normal = normalize(vec3(normalMatrix*vec4(vertexNormal,1)));\n    ojo = normalize(-vPE);  // distancia entre la posicion del ojo (0,0,0) y un vertice del objeto\n\n    LEspot = vec3(viewMatrix * vec4(pspot,1));\n    Lspot = normalize( pspot - vec3(modelMatrix * vec4(vertexPosition, 1)) );\n    LEspot = normalize(vec3(LEspot-vPE));\n   // coordenada de textura\n    gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(vertexPosition, 1);\n    coordenadas_texturas = vertexTextureCoordinates;\n  }",
+  "fragmentSource": "#version 300 es  \nprecision mediump float;\nprecision highp float;\nprecision mediump int;\n\nuniform float time;\n\nuniform float modulus ;  // 61.0  Value used in pregenerated noise texture. \nuniform float magnatude ; //1.3\nconst int octives = 8 ; //4\nuniform float lacunarity ; //2.0\nuniform float gain ; //0.5\n\n//vectores de entrada al fragment shader\nin vec3 Lspot;\nin vec3 LEspot;\nin vec3 normal;\nin vec3 Lpuntual;\nin vec3 ojo;\nin vec3 ddir;\n\n//intensidad ambiente\nuniform vec3 ia;\n\n//so0.4lo brillo\nuniform float n;\n//----------------------------------LUZ----------------------------------------------\n//parametros luz puntual\nuniform vec3 ipuntual;\nuniform vec3 fapuntual;\n\n//parametros luz spot\nuniform vec3 dspot;\nuniform vec3 ispot;\nuniform float angulo;\nuniform vec3 faspot;\n\n//parametros luz direccional\nuniform vec3 idireccional;\n\n//------------------------------------------------------------------------------------\n\nuniform sampler2D fireProfile;\nuniform sampler2D nzw;\n\nin vec3 coordenadas_texturas;\nout vec4 fragmentColor;\n\n  // Modified Blum Blum Shub pseudo-random number generator.\n  vec2 mBBS(vec2 val, float modulus) {\n    val = mod(val, modulus); // For numerical consistancy.\n    return mod(val * val, modulus);\n  }\n  /**\n   * Modified noise function.\n   * @see http://www.csee.umbc.edu/~olano/papers/index.html#mNoise\n   **/\n  float mnoise(vec3 pos) {\n    float intArg = floor(pos.z);\n    float fracArg = fract(pos.z);\n    vec2 hash = mBBS(intArg * 3.0 + vec2(0, 3), modulus);\n    vec4 g = vec4(texture(nzw, vec2(pos.x, pos.y + hash.x) / modulus).xy,texture(nzw, vec2(pos.x, pos.y + hash.y) / modulus).xy) * 2.0 - 1.0;\n    return mix(g.x + g.y * fracArg,\n               g.z + g.w * (fracArg - 1.0),\n               smoothstep(0.0, 1.0, fracArg));\n  }\n  /**\n   * Adds multiple octives of noise together.\n   **/\n  float turbulence(vec3 pos) {\n    float sum = 0.0;\n    float freq = 1.0;\n    float amp = 1.0;\n    for(int i = 0; i < 4; i++) {\n      sum += abs(mnoise(pos * freq)) * amp;\n      freq *= lacunarity;\n      amp *= gain;\n    }\n    return sum;\n  }\n  /**\n   * Samples the fire.\n   *\n   * @param loc the normalized location (0.0-1.0) to sample the fire\n   * @param scale the 'size' of the fire in world space and time\n   **/\n  vec4 sampleFire(vec3 loc, vec4 scale) {\n    // Convert xz to [-1.0, 1.0] range.\n    loc.xz = loc.xz * 2.0 - 1.0;\n\n    // Convert to (radius, height) to sample fire profile texture.\n    vec2 st = vec2(sqrt(dot(loc.xz, loc.xz)), loc.y);\n\n    // Convert loc to 'noise' space\n    loc.y -= time * scale.w; // Scrolling noise upwards over time.\n    loc *= scale.xyz; // Scaling noise space.\n\n    // Offsetting vertial texture lookup.\n    // We scale this by the sqrt of the height so that things are\n    // relatively stable at the base of the fire and volital at the\n    // top.\n    float offset = sqrt(st.y) * magnatude * turbulence(loc);\n    st.y += offset;\n\n    // TODO: Update fireProfile texture to have a black row of pixels.\n    if (st.y > 1.0) {\n      return vec4(0, 0, 0, 1);\n    }\n\n    vec4 result = texture(fireProfile, st);\n\n    // Fading out bottom so slice clipping isnt obvious\n    if (st.y < .1) {\n      result *= st.y / 0.1;\n    }\n    return result;\n  }\n\n  // Get the range of t to sample.\n  vec2 get_range(vec3 pos, vec3 dir) {\n    float pd = dot(pos.xz, dir.xz);\n    float pp = dot(pos.xz, pos.xz);\n    float dd = dot(dir.xz, dir.xz);\n\n    float temp = pd * pd + dd * (1.0 - pp);\n    if (temp < 0.0)  // No intersection\n      return vec2(0.0);\n    temp = sqrt(temp);\n    return max(vec2(0.0), vec2(-pd - temp, -pd + temp)) / dd;\n  }\n\n  vec4 ray_trace(vec3 pos, vec3 dir, vec3 t) {\n    float samples = (t.y - t.x) / t.z;\n\n    pos = pos + t.x * dir;\n    vec3 integral = vec3(0.0);\n    for (int i = 0; i < 8; i++) {\n      if (pos.y > 1.0 || pos.y < 0.0 || float(i) >= samples)\n        break;\n      vec4 s = 2.0 * sampleFire(pos, vec4(2.0, 2.0, 2.0, 1.0));\n      integral += s.xyz;\n      pos += t.z * dir;\n    }\n    return vec4(integral, 1);\n  }\n\n  void main() {\n   // luz PUNTUAL\n    float FP = 1.0/3.0;\n    vec3 N = normalize(normal);\n    vec3 L = normalize(Lpuntual);\n    vec3 V = normalize(ojo);\n    vec3 H = normalize(L+V);\n    float NL = max(dot(N,L),0.0); // intensidad de luz difusa\n    float NHn = pow(max(dot(N,H),0.0),n);// intensidad de luz especular\n    float d = sqrt(L.x*L.x + L.y*L.y + L.z*L.z  );\n    float fa = 1.0/(1.0+fapuntual.x+fapuntual.y*d+fapuntual.z*d*d);\n    vec3 luzpuntual = fa*ipuntual*(NL + NHn);\n\t\n    // luz DIRECCIONAL\n    vec3 Ldir = normalize(-ddir);\n    NL = max(dot(N,Ldir),0.0);\n    vec3 luzdireccional = vec3(0,0,0);\n    H = normalize(Ldir+V);\n    NHn  = pow(max(dot(N,H),0.0),n);\n    luzdireccional =  idireccional*( NL + NHn  );   \n\n\t// luz SPOT\n    vec3 Dspot = normalize(-dspot);\n    vec3 vL = normalize(Lspot);\n    L = normalize(LEspot);   \n    H = normalize(L+V);\n    NL = max(dot(N,L),0.0);\n    NHn  = pow(max(dot(N,H),0.0),n);\n    vec3 luzspot = vec3(0,0,0);\n    if ( angulo == 0.0 || dot(vL,Dspot) > angulo ) {\n        d = sqrt(L.x*L.x + L.y*L.y + L.z*L.z  );\n        fa = 1.0/(1.0+faspot.x+faspot.y*d+faspot.z*d*d);\n        luzspot += fa*ispot*(NL+NHn);\n    }\n    \n    vec3 color =  ia*FP*(  luzpuntual + luzspot + luzdireccional ) ;\n      color *= sampleFire(coordenadas_texturas, vec4(1.0, 2.0, 1.0, 0.5)).xyz;\n   // fragmentColor = vec4(color, length(color) * 2.5);\n\n    // Mapping texture coordinate to -1 => 1 for xy, 0=> 1 for y\n    fragmentColor = vec4(0.5, 0.5, 0.0, 0.5);\n    //fragmentColor = vec4(coordenadas_texturas, 1);\n  \t// fragmentColor = vec4(vec3((t.x - t.y) / 2.0), 1);\n    //fragmentColor = vec4(color * .25, 1);\n  }",
+  "model": "crate",
+  "uniforms": [
+    {
+      "name": "ppuntual",
+      "type": "vec3",
+      "value": [
+        0,
+        3,
+        0
+      ]
+    },
+    {
+      "name": "pspot",
+      "type": "vec3",
+      "value": [
+        0,
+        2,
+        0
+      ]
+    },
+    {
+      "name": "ddireccional",
+      "type": "vec3",
+      "value": [
+        3,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "time",
+      "type": "float",
+      "value": 1
+    },
+    {
+      "name": "modulus",
+      "type": "float",
+      "value": 61
+    },
+    {
+      "name": "magnatude",
+      "type": "float",
+      "value": 1.3
+    },
+    {
+      "name": "lacunarity",
+      "type": "float",
+      "value": 0
+    },
+    {
+      "name": "gain",
+      "type": "float",
+      "value": 0
+    },
+    {
+      "name": "ia",
+      "type": "vec3",
+      "value": [
+        0.20000000298023224,
+        0.20000000298023224,
+        0.20000000298023224
+      ]
+    },
+    {
+      "name": "n",
+      "type": "float",
+      "value": 10
+    },
+    {
+      "name": "ipuntual",
+      "type": "vec3",
+      "value": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "name": "fapuntual",
+      "type": "vec3",
+      "value": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "dspot",
+      "type": "vec3",
+      "value": [
+        0,
+        -1,
+        0
+      ]
+    },
+    {
+      "name": "ispot",
+      "type": "vec3",
+      "value": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "angulo",
+      "type": "float",
+      "value": 0.98
+    },
+    {
+      "name": "faspot",
+      "type": "vec3",
+      "value": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "idireccional",
+      "type": "vec3",
+      "value": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "name": "fireProfile",
+      "type": "sampler2D",
+      "value": 4
+    },
+    {
+      "name": "nzw",
+      "type": "sampler2D",
+      "value": 0
+    }
+  ],
+  "textureUnits": [
+    "blank",
+    "blank",
+    "blank",
+    "earth day",
+    "crate",
+    "blank",
+    "blank"
+  ]
+}

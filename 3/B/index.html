@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<title>"Fire at Will"</title>
+	<link rel="shortcut icon" type="image/png" href="../icons/leo.jpg"/>
+	<script src="../Libs/gl-matrix-min.js"></script>
+	<script src="../Libs/VertexAttributeInfo.js"></script>
+	<script src="../Libs/VAOHelper.js"></script>
+	<script src="../Libs/ShaderProgramHelper.js"></script>
+	<script src="../Libs/Binterfaz.js"></script>
+	<script src="../Libs/Utils.js"></script>
+	<script src="../Libs/OBJParser.js"></script>
+	<script src="../Libs/Camara.js"></script>
+	<script src="../Libs/Model.js"></script>
+	<script src="../Libs/Light.js"></script>
+	<script src="../Shaders/B/Phong.js"></script>
+	<script src="../Shaders/B/PhongProcedural.js"></script>
+	<script src="../Shaders/B/Phong2.js"></script>
+	<script src="../Shaders/B/PhongT.js"></script>
+	<script src="../Modelos/B/agua.obj"></script>
+	<script src="../Modelos/B/arena.obj"></script>
+	<script src="../Modelos/B/bote/bote.obj"></script>
+	<script src="../Modelos/B/castillo/exterior_castillo.obj"></script>
+	<script src="../Modelos/B/castillo/interior_castillo.obj"></script>
+	<script src="../Modelos/B/castillo/bandera.obj"></script>
+	<script src="../Modelos/B/castillo/puertas_torres.obj"></script>
+	<script src="../Modelos/B/palmeras/hojas.obj"></script>
+	<script src="../Modelos/B/palmeras/troncos.obj"></script>
+	<script src="../Modelos/B/cañón/barriles.obj"></script>
+	<script src="../Modelos/B/cañón/base.obj"></script>
+	<script src="../Modelos/B/cañón/ruedas.obj"></script>
+	<script src="../Modelos/low_fi_esfera.obj"></script>
+	<script src="../Modelos/luna.obj"></script>
+	<script src="../Modelos/materiales.js"></script>
+	<script src="main.js"></script>
+	<script type="text/javascript">
+		window.addEventListener('keydown',this.oyente_teclado,false);
+		function oyente_teclado(e) {
+			window.addEventListener("keydown", function(e) {
+			// space and arrow keys
+				if( [32, 33, 34, 37, 38, 39, 40, 107, 109, 187, 189].indexOf(e.keyCode) > -1 ) {
+					e.preventDefault();
+				}
+			}, false);
+			var tecla = e.keyCode;
+			switch (tecla) {
+				case 37:
+					posicion_teclado(-0.07, 1);
+					break;
+				case 33:
+					posicion_teclado(-5,0);
+					break;
+				case 39:
+					posicion_teclado(0.07, 1);
+					break;
+				case 34:
+					posicion_teclado(5,0);
+					break;
+				case 32:
+					reset_camara();
+					break;
+				case 38:
+					posicion_teclado(-0.07,2);
+					break;
+				case 40:
+					posicion_teclado(0.07,2);
+					break;
+				case 107:
+					camara.zoom(-7);
+					break;
+				case 109:
+					camara.zoom(7);
+					break;
+				case 187:
+					camara.zoom(-7);
+					break;
+				case 189:
+					camara.zoom(7);
+					break;
+			}
+		}
+	</script>
+	<LINK REL=StyleSheet HREF="style.css" TYPE="text/css" MEDIA=screen>
+</head>
+
+	<body onload='onLoad();'>
+	<div id ='DivPrincipal'	>
+			<h1 id="Titulo">Escena B</h1>
+		<div id ='Canvas'>
+			<canvas id='webglCanvas' width="1000" height="700" oninput="teclado(this);">
+			</canvas>
+		</div>
+
+		<div id='PanelPrincipal'>
+		<table id="BodyTables">
+		<tr id="HeadTables">
+			<td colspan="2">Luz</td>
+			<td >
+				<select id="luz_seleccionada" onclick="cambiar_luz(value);">
+					<option value=0>Puntual</option>
+					<option value=1>Ambiente</option>
+				</select>
+				<!-- <button id="dibujar_luz" onclick="toggle();">On</button> -->
+			</td>
+		</tr>
+
+		<tr id="epos">
+			<td class = "titulo">Posición</td>
+			<td>
+				<label class="value">ρ:</label>
+				<input type="range" id="rpos" min="0.01" max="100" class="slider" oninput="posicion(this.value, 0);">
+				<label class="value"><br />θ:</label>
+				<input type="range" id="tpos" step="0.01" min="0.01" max="6.28" class="slider" oninput="posicion(this.value, 1);">
+				<label class="value"><br />φ:</label>
+				<input type="range" id="fpos" step="0.01" min="0.01" max="3.14" class="slider" oninput="posicion(this.value, 2);">
+			</td>
+			<td>
+				<spam  class="value" id="textInput1" min="0.01" max="100" ></spam><br />
+				<spam  class="value" id="textInput2" min="0.01" max="6.28"></spam><br />
+				<spam  class="value" id="textInput3" min="0.01" max="3.14"></spam>
+			</td>
+		</tr>
+
+
+		<tr id="eatt">
+				<td class = "titulo">Atenuación</td>
+				<td>
+					<label class="value">a:</label>
+					<input type="range" step="0.1" id="aatt" min="0" max="10" class="slider" oninput="atenuacion(this.value, 0);">
+					<label class="value"><br />b:</label>
+					<input type="range" step="0.1" id="batt" min="0" max="10" class="slider" oninput="atenuacion(this.value, 1);">
+					<label class="value"><br />c:</label>
+					<input type="range" step="0.1" id="catt" min="0" max="10" class="slider" oninput="atenuacion(this.value, 2);">
+				</td>
+				<td>
+					<spam  class="value" id="textInput4" min="0" max="10"></spam><br />
+					<spam  class="value" id="textInput5" min="0" max="10"></spam><br />
+					<spam  class="value" id="textInput6" min="0" max="10"></spam>
+				</td>
+		</tr>
+
+		<tr>
+			<td class = "titulo">Intensidad</td>
+			<td>
+				<label class="value" >r:</label>
+				<input type="range" id="rint" step="0.01" min="0" max="255" class="slider" oninput="intensidad(this.value, 0);">
+				<label class="value"><br />g:</label>
+				<input type="range" id="gint" step="0.01" min="0" max="255" class="slider" oninput="intensidad(this.value, 1);">
+				<label class="value"><br />b:</label>
+				<input type="range" id="bint" step="0.01" min="0" max="255" class="slider" oninput="intensidad(this.value, 2);">
+			</td>
+			<td>
+				<spam  class="value" id="textInput7" min="0" max="255"></spam><br />
+				<spam  class="value" id="textInput8" min="0" max="255"></spam><br />
+				<spam  class="value" id="textInput9" min="0" max="255"></spam>
+			</td>
+		</tr>
+
+	</table>
+
+	<table id="BodyTables">
+		<tr id="HeadTables">
+			<td colspan="2">Bandera</td>
+			<td>
+				<select id="bandera_seleccinada" onclick="cambiar_bandera(value);">
+					<option value=0>Argentina</option>
+					<option value=1>DCIC</option>
+					<option value=2>Inglaterra</option>
+					<option value=3>Leones</option>
+				</select>
+			</td>
+		</tr>
+	</table>
+
+	<table id="BodyTables">
+		<tr id="HeadTables">
+			<td colspan="2">Bote</td>
+			<td colspan="1"></td>
+		</tr>
+		<tr>
+			<td class = "titulo">Ganancia</td>
+			<td>
+				<input type="range" step="0.01" id="ganancia" min="0" max="1" class ="slider" oninput="ganancia(this.value);">
+			</td>
+			<td>	
+				<spam class="value" id="textInput10" min="0" max="1" ></spam>	
+			</td>
+		</tr>
+		<tr>
+			<td class = "titulo">Lacunaridad</td>
+			<td>
+				<input type="range" step="0.1" id="lacunaridad" min="1" max="10" class ="slider" oninput="lacunaridad(this.value);">
+			</td>
+			<td>	
+				<spam class="value" id="textInput11" min="1" max="10"></spam>	
+			</td>
+		</tr>
+		<tr>
+			<td class = "titulo">Octavas</td>
+			<td>
+				<input type="range" step="1" id="octavas" min="0" max="10" class ="slider" oninput="octavas(this.value);">
+			</td>
+			<td>	
+				<spam class="value" id="textInput12" min="0" max="10" ></spam>	
+			</td>
+		</tr>
+		<tr>
+			<td class = "titulo">Resolución</td>
+			<td>
+				<input type="range" step="1" id="resolucion0" min="0" max="1000" class ="slider" oninput="resolucion(this.value, 0);">
+				<input type="range" step="1" id="resolucion1" min="1" max="1000" class ="slider" oninput="resolucion(this.value, 1);">
+			</td>
+			<td>	
+				<spam  class="value" id="textInput13" min="0" max="1000" ></spam><br />
+				<spam  class="value" id="textInput14" min="0" max="1000"></spam>
+			</td>
+		</tr>
+	</table>
+	<!------------------------------- Cámara ------------------------------------>
+
+	<table id="BodyTables">
+		<tr id="HeadTables">
+			<td colspan="1">Cámara</td>
+			<td>
+				<button id="boton_reset" onclick="reset_camara();">Restablecer cámara
+				</button>
+			</td>
+		</tr>
+	</table>
+
+
+	
+	<table id="BodyTables" >
+		<tr  id="HeadTables">
+			<td>
+				<a href="../index.html">Volver al índice</a></td>
+			<td><a href="../A/index.html">Ir a la escena A</a></td>
+		</tr>
+	</table>
+</div>
+
+</div>
+
+</body>
+</html>

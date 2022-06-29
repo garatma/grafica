@@ -1,0 +1,92 @@
+{
+  "vertexSource": "#version 300 es\nuniform mat4 viewMatrix;\nuniform mat4 projectionMatrix;\nuniform mat4 normalMatrix;\nuniform mat4 modelMatrix;\n\nuniform vec3 ppuntual;\n\nin vec2 vertexTextureCoordinates;\nin vec3 vertexNormal;\nin vec3 vertexPosition;\nout vec3 normal;\nout vec3 Lpuntual;\nout vec3 ojo;\nout vec2 coordenadas_texturas;\nout vec2 frag_pos;\n\n\nvoid main() {\n    vec3 vPE = vec3(viewMatrix * modelMatrix * vec4(vertexPosition, 1));\n    vec3 LE = vec3(viewMatrix * vec4(ppuntual,1));\n    Lpuntual = normalize(vec3(LE-vPE));\n    normal = normalize(vec3(normalMatrix*vec4(vertexNormal,1)));\n    ojo = normalize(-vPE);  // distancia entre la posicion del ojo (0,0,0) y un vertice del objeto\n\n    coordenadas_texturas = vertexTextureCoordinates;\n    \n    gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(vertexPosition, 1);\n}",
+  "fragmentSource": "#version 300 es\n// adaptar a a la geometria que quiero dibujar\nprecision mediump float;\nuniform vec2 u_resolution;\n//intensidad ambiente\nuniform vec3 ia;\n\n//ambiente,difuso y especular--> Material wood\nuniform vec3 ka;\nuniform vec3 kd;\nuniform vec3 ks;\nuniform float n;\n\n//parametros luz puntual\nuniform vec3 ipuntual;\nuniform vec3 fapuntual;\n\nin vec3 normal;\nin vec3 Lpuntual;\nin vec3 ojo;\n\nin vec2 coordenadas_texturas;\nin vec2 frag_pos;\nout vec4 fragmentColor;\n\nfloat random (in vec2 coordenadas_texturas) {\n    return fract(sin(dot(coordenadas_texturas.xy,\n                         vec2(12.9898,78.233)))\n                * 43758.5453123);\n}\n\n// funcion para generar ruido\nfloat noise(vec2 st) {\n    vec2 i = floor(st);\n    vec2 f = fract(st);\n    vec2 u = f*f*(3.0-2.0*f);\n    return mix( mix( random( i + vec2(0.0,0.0) ),\n                     random( i + vec2(1.0,0.0) ), u.x),\n                mix( random( i + vec2(0.0,1.0) ),\n                     random( i + vec2(1.0,1.0) ), u.x), u.y);\n}\n// funcion para generar remolino y que aparente madera\nmat2 rotate2d(float angle){\n    return mat2(cos(angle),-sin(angle),\n                sin(angle),cos(angle));\n}\n// cantidad de lineas sobre la textura\nfloat lines( in vec2 coordenadas_texturas, float b){\n    float scale = 64.0;\n    coordenadas_texturas *= scale;\n    return smoothstep(0.0,\n                    .5+b*.5,\n                    abs((sin(coordenadas_texturas.x*3.1415)+b*2.0))*.5);\n}\n\nvoid main() {\n       // luz PUNTUAL\n    float FP = 1.0/3.0;\n    vec3 N = normalize(normal);\n    vec3 L = normalize(Lpuntual);\n    vec3 V = normalize(ojo);\n    vec3 H = normalize(L+V);\n    float NL = max(dot(N,L),0.0); // intensidad de luz difusa\n    float NHn = pow(max(dot(N,H),0.0),n);// intensidad de luz especular\n    float d = sqrt(L.x*L.x + L.y*L.y + L.z*L.z  );\n    float fa = 1.0/(1.0+fapuntual.x+fapuntual.y*d+fapuntual.z*d*d);\n    vec3 luzpuntual = fa*ipuntual*(kd*NL + ks*NHn);\n\n     vec3 color =  ia*ka + FP*(  luzpuntual ) ;\n    \n    vec2 st = coordenadas_texturas;\n\n    vec2 pos = st.yx*vec2(0.3,2);\n\n    float pattern = pos.x;\n\n    // agrego el ruido\n    pos = rotate2d( noise(pos) ) * pos;\n\n    // dibujo el patron de lineas\n    pattern = lines(pos,.8);\n\n    fragmentColor = vec4(color,1.0)* vec4(vec3(pattern),1);\n}",
+  "model": "crate",
+  "uniforms": [
+    {
+      "name": "ppuntual",
+      "type": "vec3",
+      "value": [
+        0,
+        -1,
+        0
+      ]
+    },
+    {
+      "name": "u_resolution",
+      "type": "vec2",
+      "value": [
+        2,
+        2
+      ]
+    },
+    {
+      "name": "ia",
+      "type": "vec3",
+      "value": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "name": "ka",
+      "type": "vec3",
+      "value": [
+        0.30000001192092896,
+        0.15000000596046448,
+        0.05999999865889549
+      ]
+    },
+    {
+      "name": "kd",
+      "type": "vec3",
+      "value": [
+        0.30000001192092896,
+        0.20000000298023224,
+        0.009999999776482582
+      ]
+    },
+    {
+      "name": "ks",
+      "type": "vec3",
+      "value": [
+        0.20000000298023224,
+        0.10000000149011612,
+        0.009999999776482582
+      ]
+    },
+    {
+      "name": "n",
+      "type": "float",
+      "value": 27.9
+    },
+    {
+      "name": "ipuntual",
+      "type": "vec3",
+      "value": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "name": "fapuntual",
+      "type": "vec3",
+      "value": [
+        0,
+        0,
+        0
+      ]
+    }
+  ],
+  "textureUnits": [
+    "blank",
+    "blank",
+    "blank",
+    "blank",
+    "blank",
+    "blank",
+    "blank"
+  ]
+}

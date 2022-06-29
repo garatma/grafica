@@ -1,0 +1,98 @@
+{
+  "vertexSource": "#version 300 es\nuniform mat4 viewMatrix;\nuniform mat4 projectionMatrix;\nuniform mat4 normalMatrix;\nuniform mat4 modelMatrix;\n\nuniform vec3 ppuntual;\n\nin vec2 vertexTextureCoordinates;\nin vec3 vertexNormal;\nin vec3 vertexPosition;\n\nout vec3 normal;\nout vec3 Lpuntual;\nout vec3 ojo;\nout vec2 coordtext;\n\n\nvoid main() {\n    vec3 vPE = vec3(viewMatrix * modelMatrix * vec4(vertexPosition, 1));\n    vec3 LE = vec3(viewMatrix * vec4(ppuntual,1));\n    Lpuntual = normalize(vec3(LE-vPE));\n    normal = normalize(vec3(normalMatrix*vec4(vertexNormal,0)));\n    ojo = normalize(-vPE);  // distancia entre la posicion del ojo (0,0,0) y un vertice del objeto\n\n    coordtext = vertexTextureCoordinates;\n    \n    gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(vertexPosition, 1);\n}",
+  "fragmentSource": "#version 300 es\nprecision mediump float;\n\nuniform vec2 u_resolution;\nuniform float lacunaridad;\nuniform float ganancia;\nuniform float octavas;\n//uniform vec2 u_mouse;\n//uniform float u_time;\n\nuniform float n;\nuniform vec3 ipuntual;\nuniform vec3 fapuntual;\nuniform vec3 ka;\nuniform vec3 kd;\nuniform vec3 ks;\n\n\nin vec3 normal;\nin vec3 Lpuntual;\nin vec3 ojo;\nin vec2 coordtext;\n\nout vec4 FragColor;\n\nfloat random (vec2 coordtext) {\n    return fract(sin(dot(coordtext.xy,vec2(12.9898,78.233)))* 43758.5453123);\n}\n\nfloat noise (vec2 coordtext) {\n    vec2 i = floor(coordtext);\n    vec2 f = fract(coordtext);\n\n    // Four corners in 2D of a tile\n    float a = random(i);\n    float b = random(i + vec2(1.0, 0.0));\n    float c = random(i + vec2(0.0, 1.0));\n    float d = random(i + vec2(1.0, 1.0));\n\n    vec2 u = f * f * (3.0 - 2.0 * f);\n\n    return mix(a, b, u.x) +\n            (c - a)* u.y * (1.0 - u.x) +\n            (d - b) * u.x * u.y;\n}\n\n\nvec4 mod289(vec4 x)\n{\n    return x - floor(x * (1.0 / 289.0)) * 289.0;\n}\n \nvec4 permute(vec4 x)\n{\n    return mod289(((x*34.0)+1.0)*x);\n}\n \nvec4 taylorInvSqrt(vec4 r)\n{\n    return 1.79284291400159 - 0.85373472095314 * r;\n}\n \n// interpolación quíntica curva ( f (x) = 6x ^ 5 -15t ^ 4 + 10t ^ 3 ).  \nvec2 fade(vec2 t) {\n    return t*t*t*(t*(t*6.0-15.0)+10.0);\n}\n\n\nfloat cnoise(vec2 P)\n{\n    vec4 Pi = floor(P.xyxy) + vec4(0.0, 0.0, 1.0, 1.0);\n    vec4 Pf = fract(P.xyxy) - vec4(0.0, 0.0, 1.0, 1.0);\n    Pi = mod289(Pi); // To avoid truncation effects in permutation\n    vec4 ix = Pi.xzxz;\n    vec4 iy = Pi.yyww;\n    vec4 fx = Pf.xzxz;\n    vec4 fy = Pf.yyww;\n     \n    vec4 i = permute(permute(ix) + iy);\n     \n    vec4 gx = fract(i * (1.0 / 41.0)) * 2.0 - 1.0 ;\n    vec4 gy = abs(gx) - 0.5 ;\n    vec4 tx = floor(gx + 0.5);\n    gx = gx - tx;\n     \n    vec2 g00 = vec2(gx.x,gy.x);\n    vec2 g10 = vec2(gx.y,gy.y);\n    vec2 g01 = vec2(gx.z,gy.z);\n    vec2 g11 = vec2(gx.w,gy.w);\n     \n    vec4 norm = taylorInvSqrt(vec4(dot(g00, g00), dot(g01, g01), dot(g10, g10), dot(g11, g11)));\n    g00 *= norm.x;  \n    g01 *= norm.y;  \n    g10 *= norm.z;  \n    g11 *= norm.w;  \n     \n    float n00 = dot(g00, vec2(fx.x, fy.x));\n    float n10 = dot(g10, vec2(fx.y, fy.y));\n    float n01 = dot(g01, vec2(fx.z, fy.z));\n    float n11 = dot(g11, vec2(fx.w, fy.w));\n     \n    vec2 fade_xy = fade(Pf.xy);\n    vec2 n_x = mix(vec2(n00, n01), vec2(n10, n11), fade_xy.x);\n    float n_xy = mix(n_x.x, n_x.y, fade_xy.y);\n    return 2.3 * n_xy;\n}\n\n\n\n\nfloat fbm (vec2 coordtext,float ganancia, float lacunaridad,int octaves) {\n    // Initial values\n    float value = 0.0;\n    float amplitud = .5;\n    //float frequency = 0.;\n    \n    // Loop of octaves\n    for (int i = 0; i < octaves; i++) {\n        value += amplitud * cnoise(coordtext);\n        coordtext *= lacunaridad;   // lacunaridad = 2.0  \n        amplitud *= ganancia; // ganancia = 0.5 \n    }\n    return value;\n}\n\nvoid main() {\n    vec2 st = coordtext;   //gl_FragCoord.xy / u_resolution.xy;\n    st.x *= u_resolution.x / u_resolution.y;\n    float v = fbm(coordtext.xx * vec2(100.0, 12.0),ganancia,lacunaridad,int(octavas));\n    float v0 = smoothstep(-1.0, 1.0, sin(st.x * 14.0 + v * 8.0));\n    float v1 = random(coordtext);\n    float v2 = noise(coordtext * vec2(200.0, 14.0)) - noise(coordtext * vec2(1000.0, 64.0));\n\n    vec3 col = vec3(0.860,0.806,0.574);\n    col = mix(col, vec3(0.390,0.265,0.192), v0);\n    col = mix(col, vec3(0.930,0.493,0.502), v1 * 0.5);\n    col -= v2 * 0.2;\n    \n    float FP = 1.0/3.0;\n    vec3 N = normalize(normal);\n    vec3 L = normalize(Lpuntual);\n    vec3 V = normalize(ojo);\n    vec3 H = normalize(L+V);\n    float NL = max(dot(N,L),0.0); // intensidad de luz difusa\n    float NHn = pow(max(dot(N,H),0.0),n);// intensidad de luz especular\n    float d = sqrt(L.x*L.x + L.y*L.y + L.z*L.z  );\n    float fa = 1.0/(1.0+fapuntual.x+fapuntual.y*d+fapuntual.z*d*d);\n    vec3 luzpuntual = ipuntual*ka + fa*ipuntual*(kd*NL + ks*NHn);\n\n    \n    FragColor = vec4(col, 1.0) * vec4(luzpuntual,1);\n}\n",
+  "model": "crate",
+  "uniforms": [
+    {
+      "name": "ppuntual",
+      "type": "vec3",
+      "value": [
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "name": "u_resolution",
+      "type": "vec2",
+      "value": [
+        1000,
+        1000
+      ]
+    },
+    {
+      "name": "lacunaridad",
+      "type": "float",
+      "value": 0.5
+    },
+    {
+      "name": "ganancia",
+      "type": "float",
+      "value": 2
+    },
+    {
+      "name": "octavas",
+      "type": "float",
+      "value": 0
+    },
+    {
+      "name": "n",
+      "type": "float",
+      "value": 3
+    },
+    {
+      "name": "ipuntual",
+      "type": "vec3",
+      "value": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "name": "fapuntual",
+      "type": "vec3",
+      "value": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "name": "ka",
+      "type": "vec3",
+      "value": [
+        0.9300000071525574,
+        0.8999999761581421,
+        0.6000000238418579
+      ]
+    },
+    {
+      "name": "kd",
+      "type": "vec3",
+      "value": [
+        0.10000000149011612,
+        0.10000000149011612,
+        0.10000000149011612
+      ]
+    },
+    {
+      "name": "ks",
+      "type": "vec3",
+      "value": [
+        0.009999999776482582,
+        0.009999999776482582,
+        0.009999999776482582
+      ]
+    }
+  ],
+  "textureUnits": [
+    "blank",
+    "blank",
+    "blank",
+    "blank",
+    "blank",
+    "blank",
+    "blank"
+  ]
+}

@@ -1,0 +1,161 @@
+{
+  "vertexSource": "#version 300 es\n\nuniform mat4 viewMatrix;\nuniform mat4 projectionMatrix;\nuniform mat4 normalMatrix;\nuniform mat4 modelMatrix;\n\nuniform vec3 ppuntual;\nuniform vec3 pspot;\nuniform vec3 ddireccional;\n\nin vec2 vertexTextureCoordinates;\nin vec3 vertexNormal;\nin vec3 vertexPosition;\nout vec3 normal;\nout vec3 Lpuntual;\nout vec3 ojo;\nout vec3 Lspot;\nout vec3 LEspot;\nout vec3 ddir;\nout vec2 TextureCoordinates;\n\nvoid main() {\n    vec3 vPE = vec3(viewMatrix * modelMatrix * vec4(vertexPosition, 1));\n    vec3 LE = vec3(viewMatrix * vec4(ppuntual,1));\n    ddir = normalize( vec3( viewMatrix * vec4(ddireccional,0)   )  );\n    Lpuntual = normalize(vec3(LE-vPE));\n    normal = normalize(vec3(normalMatrix*vec4(vertexNormal,1)));\n    ojo = normalize(-vPE);  // distancia entre la posicion del ojo (0,0,0) y un vertice del objeto\n\n    LEspot = vec3(viewMatrix * vec4(pspot,1));\n    Lspot = normalize( pspot - vec3(modelMatrix * vec4(vertexPosition, 1)) );\n    LEspot = normalize(vec3(LEspot-vPE));\n   // coordenada de textura\n    TextureCoordinates = vertexTextureCoordinates;\n    \n    gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(vertexPosition, 1);\n}",
+  "fragmentSource": "#version 300 es\nprecision mediump float;\n\n//intensidad ambiente\nuniform vec3 ia;\n\n//ambiente,difuso y especular--> Material : Turquoise\nuniform vec3 ka;\nuniform vec3 kd;\nuniform vec3 ks;\nuniform float n;\n\nuniform float variante;\n\n//parametros luz puntual\nuniform vec3 ipuntual;\nuniform vec3 fapuntual;\n\n//parametros luz spot\nuniform vec3 dspot;\nuniform vec3 ispot;\nuniform float angulo;\nuniform vec3 faspot;\n\n//parametros luz direccional\nuniform vec3 idireccional;\n\n//vectores de entrada al fragment shader\nin vec3 Lspot;\nin vec3 LEspot;\nin vec3 normal;\nin vec3 Lpuntual;\nin vec3 ojo;\nin vec3 ddir;\n\n//coordenadas de textura\nuniform sampler2D imagen; \nin vec2 TextureCoordinates;\n//Ruido 4de valores 2D\nuniform vec2 u_resolution;\n\nout vec4 fragmentColor;\n\n//Funcion random 2D\nfloat random ( in vec2 TextureCoordinates) {\n    return fract(sin(dot(TextureCoordinates.xy, vec2(12.9898,78.233))) * 43758.5453123);\n}\n//Funcion Ruido de valores 2D\nfloat ruido2D (in vec2 TextureCoordinates){\n    vec2 i = floor(TextureCoordinates);\n    vec2 f = fract(TextureCoordinates);\n    //Calculo los 4 valores de cada esquina de la cuadricula 2D\n    float a = random (i);\n    float b = random (i +vec2(1.0,0.0));\n    float c = random (i +vec2(0.0,1.0));\n    float d = random (i +vec2(1.0,1.0));\n   \n    //Interpolación Suave\n    //curva de Hermite cúbica--> f (x) = 3x ^ 2-2x ^ 3\n    vec2 u = f*f*(3.0+2.0*f);\n    \n    //interpolo los porcentajes de las cuatro esquinas \n    return mix(a,b,u.x) + (c-a)*(1.0-u.x)*u.y +(d-b)*u.x*u.y;   \n}\n\nvoid main() {\n    \n    // luz PUNTUAL\n    float FP = 1.0/3.0;\n    vec3 N = normalize(normal);\n    vec3 L = normalize(Lpuntual);\n    vec3 V = normalize(ojo);\n    vec3 H = normalize(L+V);\n    float NL = max(dot(N,L),0.0); // intensidad de luz difusa\n    float NHn = pow(max(dot(N,H),0.0),n);// intensidad de luz especular\n    float d = sqrt(L.x*L.x + L.y*L.y + L.z*L.z  );\n    float fa = 1.0/(1.0+fapuntual.x+fapuntual.y*d+fapuntual.z*d*d);\n    vec3 luzpuntual = fa*ipuntual*(kd*NL + ks*NHn);\n\t\n    // luz DIRECCIONAL\n    vec3 Ldir = normalize(-ddir);\n    NL = max(dot(N,Ldir),0.0);\n    vec3 luzdireccional = vec3(0,0,0);\n    H = normalize(Ldir+V);\n    NHn  = pow(max(dot(N,H),0.0),n);\n    luzdireccional =  idireccional*( kd*NL + ks*NHn  );   \n\n\t// luz SPOT\n    vec3 Dspot = normalize(-dspot);\n    vec3 vL = normalize(Lspot);\n    L = normalize(LEspot);   \n    H = normalize(L+V);\n    NL = max(dot(N,L),0.0);\n    NHn  = pow(max(dot(N,H),0.0),n);\n    vec3 luzspot = vec3(0,0,0);\n    if ( angulo == 0.0 || dot(vL,Dspot) > angulo ) {\n        d = sqrt(L.x*L.x + L.y*L.y + L.z*L.z  );\n        fa = 1.0/(1.0+faspot.x+faspot.y*d+faspot.z*d*d);\n        luzspot += fa*ispot*(kd*NL+ks*NHn);\n    }\n    \n    vec3 color =  ia*ka + FP*( luzspot + luzpuntual +luzdireccional) ;\n\t//Ruido 2D\n    vec2 st= TextureCoordinates;\n    //Escalo el sistema de coordenadas para ver la interpolación entre los cuadrados de la cuadrícula\n    vec2 pos = vec2(st*1.7);\n    //utilizo la función ruido\n    float ruido = ruido2D(pos);\n    fragmentColor = vec4( color ,1.0)*variante +vec4(vec3(ruido),1.0)*(1.0- variante) ;\n\n}",
+  "model": "crate",
+  "uniforms": [
+    {
+      "name": "ppuntual",
+      "type": "vec3",
+      "value": [
+        0,
+        -1,
+        0
+      ]
+    },
+    {
+      "name": "pspot",
+      "type": "vec3",
+      "value": [
+        0,
+        2,
+        0
+      ]
+    },
+    {
+      "name": "ddireccional",
+      "type": "vec3",
+      "value": [
+        0,
+        -1,
+        0
+      ]
+    },
+    {
+      "name": "ia",
+      "type": "vec3",
+      "value": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "name": "ka",
+      "type": "vec3",
+      "value": [
+        0.10000000149011612,
+        0.20000000298023224,
+        0.20000000298023224
+      ]
+    },
+    {
+      "name": "kd",
+      "type": "vec3",
+      "value": [
+        0.4000000059604645,
+        0.7400000095367432,
+        0.699999988079071
+      ]
+    },
+    {
+      "name": "ks",
+      "type": "vec3",
+      "value": [
+        0.30000001192092896,
+        0.3100000023841858,
+        0.3100000023841858
+      ]
+    },
+    {
+      "name": "n",
+      "type": "float",
+      "value": 0.1
+    },
+    {
+      "name": "variante",
+      "type": "float",
+      "value": 0.3
+    },
+    {
+      "name": "ipuntual",
+      "type": "vec3",
+      "value": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "name": "fapuntual",
+      "type": "vec3",
+      "value": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "dspot",
+      "type": "vec3",
+      "value": [
+        0,
+        -1,
+        0
+      ]
+    },
+    {
+      "name": "ispot",
+      "type": "vec3",
+      "value": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "name": "angulo",
+      "type": "float",
+      "value": 0.98
+    },
+    {
+      "name": "faspot",
+      "type": "vec3",
+      "value": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "idireccional",
+      "type": "vec3",
+      "value": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "name": "imagen",
+      "type": "sampler2D",
+      "value": 0
+    },
+    {
+      "name": "u_resolution",
+      "type": "vec2",
+      "value": [
+        5,
+        5
+      ]
+    }
+  ],
+  "textureUnits": [
+    "crate",
+    "blank",
+    "blank",
+    "blank",
+    "blank",
+    "blank",
+    "blank"
+  ]
+}

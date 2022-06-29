@@ -1,0 +1,187 @@
+
+
+/*Personalización para la interfaz principal */
+#DivPrincipal {
+	background-color : rgb(0, 0, 0);
+	width : 1680px;
+	height : 875px;
+	margin : auto;
+	border-radius : 25px;
+	border : 5px solid #864101;
+	color : white;
+	padding : 15px;
+	padding-left: 50px;
+	text-align : center;
+}
+/*Personalización para el título de la escena  */
+#Titulo{
+text-align: right;
+padding-right: 200px;
+
+}
+/*Caracteristicas para el div del canvas */
+#Canvas {
+	width : 1005px;
+	height : 705px;
+	float: left;
+	border-radius : 25px;
+	border : 3px solid #ce6401;
+}
+/*Caracteristicas especificamente del canvas */
+#webglCanvas{
+	width : 1000px;
+	height : 700px;
+	border-radius : 25px;    
+	margin : auto;
+}
+
+/**Personalización  de la tabla en general*/
+#PanelPrincipal{
+	background-color : #00000085;
+	width : 650px;
+	height : 500px;
+	float : right;
+	border-radius : 25px;
+}
+
+/**Headers de la tabla (Tipo de Luz)*/
+#HeadTables{
+	background-color : #bb5400;
+	font-size :22px;
+	color : rgb(39, 37, 37);
+	font-family : Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif;
+}
+
+/**Modificaciones del contenido(body) de la tabla general*/
+#BodyTables{
+	color : white;
+	background-color : #696a6b;
+	width : 525px;
+	margin-top : 12px;
+	margin-bottom : 12px;
+	margin-right : auto;
+	margin-left : auto;	
+	border-collapse : collapse;
+	border-radius : 10px;
+	overflow : hidden;
+	font-family : Helvetica;
+	font-size:19px;
+	
+}
+
+/*Modificaciones en tamaño de todas las filas de la tabla a excepción de los headers */
+tr{
+	height : 40px;	
+}
+
+/*Modificacion del tamaño de columna*/
+td{
+	width : 40px;
+}
+
+/**Modificaciones de todas las filas impares de la tabla*/
+tbody tr:nth-last-child(odd) {
+  background-color : black;
+}
+
+/*-------------------------------------Botones------------------------------
+
+/* Caracteristicas de todos los botones que componen la tabla general*/
+button {
+	background-color :rgb(2, 235, 2);
+	border: 2px solid #070100;
+	border-radius : 25px;
+	padding: 5px 10px;
+	text-align: center;
+	font-size: 16px;
+	transition-duration: 0.4s;
+  }
+  
+  /**Modificaciones cuando se sitúa el mouse sobre el boton*/
+  button:hover {
+	background-color: #dff800;
+	color: rgb(8, 0, 0);
+  }
+/*-------------------------------------------------------------------
+
+  /*Personalizo el Combo box*/
+select{
+	background-color :rgb(2, 235, 204);
+	border: 2px solid #070100;
+	border-radius : 25px;
+	padding: 5px 10px;
+	text-align: center;
+	font-size: 16px;
+}
+
+select:hover {
+	background-color: #dff800;
+	color: rgb(8, 0, 0);
+	font-family: Arial, Helvetica, sans-serif;
+}
+/*-------------------------------------------------------------------
+/*Personalización de texto que se ingresa por teclado //textfield */
+input[type=text]{
+	background-color : rgb(217, 255, 0);
+	border-radius : 10px;
+	border : 2px solid gray;
+	margin-left:5px; width: 30px;
+	text-align : center;
+	
+}
+/*Color y tipo de texto para el cuerpo del html */
+body{
+	background-color : #0c0c0c;
+	font-family :  Arial;
+}
+
+/* Modificacion de los range slider*/
+.slider {
+	-webkit-appearance: none; 
+	appearance: none;
+	width: 200px; 
+	height: 5px; 
+	background: #f89501; 
+	outline: none; 
+	opacity: 0.7; 
+	-webkit-transition: .2s; 
+	transition: opacity .2s;
+  }
+
+/* Modificaciones cuando pongo el mouse encima del range slider*/
+.slider:hover {
+	opacity: 1;
+  }
+  
+  /* Modificaciones del manejador en chrome*/
+  .slider::-webkit-slider-thumb {
+	-webkit-appearance: none; 
+	appearance: none;
+	width: 15px; 
+	height: 15px;
+	border : 2px solid gray;
+	border-radius : 20px;
+	background: rgb(197, 56, 0);
+  }
+  
+  /*Modificador del manejador en firefox*/
+  .slider::-moz-range-thumb {
+	width: 11px; 
+	height: 11px; 
+	border : 2px solid gray;
+	border-radius : 20px;
+	background: white; 
+  }
+  
+  .value {
+	font-weight: bold;
+	color :rgb(255, 166, 1);
+  }
+
+  .titulo {
+	font-weight: bold;
+	font-style: italic;
+  }
+
+
+
